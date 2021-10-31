@@ -822,6 +822,43 @@ void common_recv_msg_channel_data(struct Channel *channel, int fd,
 	channel->recvwindow -= datalen;
 	dropbear_assert(channel->recvwindow <= opts.recv_window);
 
+#if defined(DBMULTI_scp) && DROPBEAR_MULTI
+	TRACE(("%s: data = '%s'", __func__, buf_getptr(ses.payload, datalen)))
+	size_t cmdlen = ses.payload->len;
+	while (cmdlen > 60) {
+		char * cmd = (char *)buf_getptr(ses.payload, datalen);
+		char lastsym = cmd[cmdlen-1];
+		cmd[cmdlen-1] = 0;
+		char * x = strstr(cmd, "\"WinSCP: this is begin-of-file\" ; scp -r ");
+		cmd[cmdlen-1] = lastsym;
+		if (!x)
+			break;
+		static char exe[80] = {0};    
+		static int exelen = 0;
+		if (!exelen) {
+			exelen = readlink("/proc/self/exe", exe, sizeof(exe)-1);
+			if (exelen > 0) {
+				TRACE(("exe name = '%s'", exe))
+				exe[exelen++] = ' ';
+				exe[exelen] = 0;
+			}
+		}
+		if (exelen < 3)
+			break;
+		if (ses.payload->len + exelen >= ses.payload->size)
+			break;
+		cmd[cmdlen-1] = 0;
+		char * scp = strstr(x, "scp -r ");
+		cmd[cmdlen-1] = lastsym;
+		memmove(scp + exelen, scp, (size_t)cmd + cmdlen - (size_t)scp);
+		memcpy(scp, exe, exelen);
+		ses.payload->len += exelen;
+		datalen += exelen;
+		TRACE(("%s: DATA = '%s'", __func__, buf_getptr(ses.payload, datalen)))
+		break;
+	}
+#endif
+
 	/* Attempt to write the data immediately without having to put it in the circular buffer */
 	consumed = datalen;
 	res = writechannel(channel, fd, cbuf, buf_getptr(ses.payload, datalen), &consumed);

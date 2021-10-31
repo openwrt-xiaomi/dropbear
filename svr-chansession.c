@@ -1048,6 +1048,37 @@ static void execchild(const void *user_data) {
 	svr_agentset(chansess);
 #endif
 
+#if defined(DBMULTI_scp) && DROPBEAR_MULTI
+	TRACE(("%s: shell cmd = '%s'", __func__, chansess->cmd))
+	size_t cmdlen = chansess->cmd ? strlen(chansess->cmd) : 0;
+	while (cmdlen > 6) {
+		char * cmd = chansess->cmd;
+		if (strncmp(cmd, "scp -", 5) != 0)
+			break;
+		static char exe[80] = {0};
+		static int exelen = 0;
+		if (!exelen) {
+			exelen = readlink("/proc/self/exe", exe, sizeof(exe)-1);
+			if (exelen > 0) {
+				exe[exelen++] = ' ';
+				exe[exelen] = 0;
+			}
+		}
+		if (exelen < 3)
+			break;
+		char * buf = (char *)m_malloc(exelen + cmdlen);
+		if (!buf)
+			break;
+		strcpy(buf, exe);
+		strcat(buf, chansess->cmd);
+		struct ChanSess * _chansess = (struct ChanSess *)chansess;
+		m_free(_chansess->cmd);
+		_chansess->cmd = buf;    
+		TRACE(("%s: SHELL CMD = '%s'", __func__, chansess->cmd))
+		break;
+	}
+#endif
+
 	usershell = m_strdup(get_user_shell());
 	run_shell_command(chansess->cmd, ses.maxfd, usershell);
 

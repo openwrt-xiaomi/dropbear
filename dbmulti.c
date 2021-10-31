@@ -36,6 +36,10 @@ static int runprog(const char *progname, int argc, char ** argv, int *match) {
 
 #ifdef DBMULTI_dropbear
 		if (strcmp(progname, "dropbear") == 0) {
+#ifdef DBMULTI_scp
+			if (argc >= 1 && strcmp(argv[1], "scp") == 0)
+				return scp_main(argc-1, &argv[1]);
+#endif
 			return dropbear_main(argc, argv);
 		}
 #endif
@@ -78,6 +82,10 @@ int main(int argc, char ** argv) {
 			}
 		}
 	}
+
+#ifdef DBMULTI_dropbear
+	return dropbear_main(argc, argv);
+#endif
 
 	fprintf(stderr, "Dropbear SSH multi-purpose v%s\n"
 			"Make a symlink pointing at this binary with one of the\n"

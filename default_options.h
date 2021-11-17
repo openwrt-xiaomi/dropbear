@@ -315,6 +315,6 @@ be overridden at runtime with -I. 0 disables idle timeouts */
 #define DEFAULT_IDLE_TIMEOUT 0
 
 /* The default path. This will often get replaced by the shell */
-#define DEFAULT_PATH "/usr/bin:/bin"
+#define DEFAULT_PATH "/usr/bin:/bin:/usr/sbin:/sbin"
 
 #endif /* DROPBEAR_DEFAULT_OPTIONS_H_ */

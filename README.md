@@ -20,9 +20,16 @@ git clone https://github.com/openwrt-xiaomi/dropbear.git
 
 cd dropbear
 
-TARGET_HOST=mipsel-buildroot-linux-musl
+#sed -i 's/.*define DEFAULT_PATH.*/#define DEFAULT_PATH "\/usr\/bin:\/bin:\/usr\/sbin:\/sbin"/' default_options.h
 
+TARGET_HOST=mipsel-buildroot-linux-musl
 CROSS_TOOL=/home/<toolchain_dir>/bin/mipsel-buildroot-linux-musl
+
+#TARGET_HOST=arm-buildroot-linux-musleabihf
+#CROSS_TOOL=/home/<toolchain_dir>/bin/arm-buildroot-linux-musleabihf
+
+#TARGET_HOST=aarch64-buildroot-linux-musl
+#CROSS_TOOL=/home/<toolchain_dir>/bin/aarch64-buildroot-linux-musl
 
 ./configure --host=$TARGET_HOST --enable-static --disable-zlib --disable-harden \
   --disable-pam --enable-bundled-libtom --enable-openpty --enable-syslog \
@@ -30,7 +37,7 @@ CROSS_TOOL=/home/<toolchain_dir>/bin/mipsel-buildroot-linux-musl
   --disable-loginfunc --disable-pututline --disable-pututxline \
   CC="$CROSS_TOOL-gcc" \
   CFLAGS="-Os -Wl,-static -ffunction-sections -fdata-sections" \
-  LDFLAGS="-static -Wl,--gc-sections"
+  LDFLAGS="-static -Wl,--gc-sections -Wl,--strip-all"
 
 make PROGRAMS="dropbear scp dropbearkey" MULTI=1 STATIC=1
 ```

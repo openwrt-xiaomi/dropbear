@@ -40,6 +40,10 @@ static int runprog(const char *progname, int argc, char ** argv, int *match) {
 			if (argc >= 1 && strcmp(argv[1], "scp") == 0)
 				return scp_main(argc-1, &argv[1]);
 #endif
+#ifdef DBMULTI_dropbearkey
+			if (argc >= 1 && strcmp(argv[1], "dropbearkey") == 0)
+				return dropbearkey_main(argc-1, &argv[1]);
+#endif
 			return dropbear_main(argc, argv);
 		}
 #endif

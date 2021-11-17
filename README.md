@@ -32,7 +32,7 @@ CROSS_TOOL=/home/<toolchain_dir>/bin/mipsel-buildroot-linux-musl
   CFLAGS="-Os -Wl,-static -ffunction-sections -fdata-sections" \
   LDFLAGS="-static -Wl,--gc-sections"
 
-make PROGRAMS="dropbear scp" MULTI=1 STATIC=1
+make PROGRAMS="dropbear scp dropbearkey" MULTI=1 STATIC=1
 ```
 
 

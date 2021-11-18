@@ -120,8 +120,8 @@ IMPORTANT: Some options will require "make clean" after changes */
  * RSA is recommended
  * DSS may be necessary to connect to some systems though
    is not recommended for new keys */
-#define DROPBEAR_RSA 1
-#define DROPBEAR_DSS 1
+#define DROPBEAR_RSA 0
+#define DROPBEAR_DSS 0
 /* ECDSA is significantly faster than RSA or DSS. Compiling in ECC
  * code (either ECDSA or ECDH) increases binary size - around 30kB
  * on x86-64 */

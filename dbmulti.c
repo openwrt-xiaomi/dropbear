@@ -36,14 +36,6 @@ static int runprog(const char *progname, int argc, char ** argv, int *match) {
 
 #ifdef DBMULTI_dropbear
 		if (strcmp(progname, "dropbear") == 0) {
-#ifdef DBMULTI_scp
-			if (argc >= 1 && strcmp(argv[1], "scp") == 0)
-				return scp_main(argc-1, &argv[1]);
-#endif
-#ifdef DBMULTI_dropbearkey
-			if (argc >= 1 && strcmp(argv[1], "dropbearkey") == 0)
-				return dropbearkey_main(argc-1, &argv[1]);
-#endif
 			return dropbear_main(argc, argv);
 		}
 #endif
@@ -80,6 +72,12 @@ int main(int argc, char ** argv) {
 			int match, res;
 			/* figure which form we're being called as */
 			const char* progname = basename(argv[i]);
+			if (strcmp(progname, "dropbear") == 0 && argc > i+1) {
+				res = runprog((const char *)argv[i+1], argc-i-1, &argv[i+1], &match);
+				if (match == DROPBEAR_SUCCESS) {
+					return res;
+				}
+			}
 			res = runprog(progname, argc-i, &argv[i], &match);
 			if (match == DROPBEAR_SUCCESS) {
 				return res;

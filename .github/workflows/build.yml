@@ -136,9 +136,8 @@ jobs:
           echo "CROSS_TOOL=$GCC_PATH/$TARGET_HOST-" >> $GITHUB_ENV
           echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
       
-      - name: Build the kernel module
+      - name: Build dropbear
         id: compile
-        if: steps.patch.outputs.status == 'success'
         env: 
           ARCH: ${{ matrix.arch }}
         run: |

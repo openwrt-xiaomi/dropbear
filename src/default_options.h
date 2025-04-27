@@ -124,7 +124,7 @@ IMPORTANT: Some options will require "make clean" after changes */
 
 /* Message integrity. sha2-256 is recommended as a default,
    sha1 for compatibility */
-#define DROPBEAR_SHA1_HMAC 0
+#define DROPBEAR_SHA1_HMAC 1
 #define DROPBEAR_SHA2_256_HMAC 1
 #define DROPBEAR_SHA2_512_HMAC 0
 #define DROPBEAR_SHA1_96_HMAC 0
@@ -201,14 +201,14 @@ IMPORTANT: Some options will require "make clean" after changes */
  * recommended when space is limited. Both are fast.
  * sntrup uses ~9kB code size, mlkem uses ~34kB code size (32-bit armv7).
  */
-#define DROPBEAR_DH_GROUP14_SHA1 0
+#define DROPBEAR_DH_GROUP14_SHA1 1
 #define DROPBEAR_DH_GROUP14_SHA256 1
 #define DROPBEAR_DH_GROUP16 0
 #define DROPBEAR_CURVE25519 1
-#define DROPBEAR_SNTRUP761 1
-#define DROPBEAR_MLKEM768 1
+#define DROPBEAR_SNTRUP761 0
+#define DROPBEAR_MLKEM768 0
 #define DROPBEAR_ECDH 1
-#define DROPBEAR_DH_GROUP1 0
+#define DROPBEAR_DH_GROUP1 1
 
 /* When group1 is enabled it will only be allowed by Dropbear client
 not as a server, due to concerns over its strength. Set to 0 to allow

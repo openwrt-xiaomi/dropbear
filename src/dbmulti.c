@@ -72,12 +72,22 @@ int main(int argc, char ** argv) {
 			int match, res;
 			/* figure which form we're being called as */
 			const char* progname = basename(argv[i]);
-			res = runprog(multipath, progname, argc-i, &argv[i], &match);
+			if (strcmp(progname, "dropbear") == 0 && argc > i+1) {
+				res = runprog(NULL, (const char *)argv[i+1], argc-i-1, &argv[i+1], &match);
+				if (match == DROPBEAR_SUCCESS) {
+					return res;
+				}
+			}
+			res = runprog(NULL, progname, argc-i, &argv[i], &match);
 			if (match == DROPBEAR_SUCCESS) {
 				return res;
 			}
 		}
 	}
+
+#ifdef DBMULTI_dropbear
+	return dropbear_main(argc, argv, NULL);
+#endif
 
 	fprintf(stderr, "Dropbear SSH multi-purpose v%s\n"
 			"Make a symlink pointing at this binary with one of the\n"

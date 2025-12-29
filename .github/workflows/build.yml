@@ -139,23 +139,15 @@ jobs:
             autoreconf -fi
           fi
 
-      - name: Detect toolchain
-        id: detect-toolchain
+      - name: Check cross-compiler
+        env:
+          CROSS_TOOL: ${{ matrix.cross }}
         run: |
-          echo "Searching for cross-compiler bin directory..."
-          if [ -z "$STAGING_DIR" ]; then
-            echo "Error: STAGING_DIR not set!"
-            exit 1
-          fi
-          TOOLCHAIN_BIN=$(find "$STAGING_DIR" -type f -name "${{ matrix.cross }}gcc" -exec dirname {} \; | head -n 1)
-          if [ -z "$TOOLCHAIN_BIN" ]; then
-            echo "Error: cross-compiler not found inside $STAGING_DIR!"
-            exit 1
-          fi
-          echo "Found cross-compiler in: $TOOLCHAIN_BIN"
-          echo "##[set-env name=TOOLCHAIN_BIN]$TOOLCHAIN_BIN"
-
+          echo "Checking cross-compiler..."
+          ${CROSS_TOOL}gcc --version
+          
       - name: Setup cross-compiler PATH
+        if: false
         run: |
           export PATH="$TOOLCHAIN_BIN:$PATH"
           echo "PATH=$PATH"

@@ -219,15 +219,20 @@ jobs:
               echo "ERROR: File dropbearmulti not found!"
               exit 1
           fi
+          echo "status=success" >> $GITHUB_OUTPUT
+          
+      - name: Prepare artifacts
+        id: prepare
+        if: steps.compile.outputs.status == 'success'
+        run: |
           echo "Stripping binaries with sstrip..."
-          ./sstrip dropbearmuilti || echo "sstrip failed or not installed, skipping"
+          ./sstrip dropbearmulti || echo "sstrip failed or not installed, skipping"
           echo "Sizes after sstrip:"
           ls -lh dropbearmulti
           OUT_DIR=artifacts
           mkdir -p $OUT_DIR
           cp -f dropbearmulti $OUT_DIR/
           echo "OUT_DIR=$OUT_DIR" >> $GITHUB_ENV
-          echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

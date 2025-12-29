@@ -86,25 +86,25 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            container: ghcr.io/openwrt/sdk:aarch64_generic-24.10.0
+            container: ghcr.io/openwrt/sdk:aarch64_generic-24.10.4
             host: aarch64-openwrt-linux
             cross: aarch64-openwrt-linux-
             cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: armv7a
-            container: ghcr.io/openwrt/sdk:arm_cortex-a7-24.10.0
+            container: ghcr.io/openwrt/sdk:arm_cortex-a7-24.10.4
             host: arm-openwrt-linux-musleabi
             cross: arm-openwrt-linux-musleabi-
-            cflags: "-Os -mcpu=cortex-a7 -mfloat-abi=softfp -ffunction-sections -fdata-sections"
+            cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: armv5
-            container: ghcr.io/openwrt/sdk:arm_cortex-a5-24.10.0
+            container: ghcr.io/openwrt/sdk:arm_cortex-a5_vfpv4-24.10.4
             host: arm-openwrt-linux-musleabi
             cross: arm-openwrt-linux-musleabi-
-            cflags: "-Os -mcpu=cortex-a5 -mfloat-abi=softfp -ffunction-sections -fdata-sections"
+            cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: mips
-            container: ghcr.io/openwrt/sdk:ramips_mt7621-24.10.0
+            container: ghcr.io/openwrt/sdk:mipsel_24kc-24.10.4
             host: mipsel-openwrt-linux
             cross: mipsel-openwrt-linux-
             cflags: "-Os -ffunction-sections -fdata-sections"

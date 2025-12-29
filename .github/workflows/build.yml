@@ -138,6 +138,7 @@ jobs:
           export TARGET_HOST=${{ matrix.host }}
           export CROSS_TOOL=${{ matrix.cross }}
           ./configure \
+            --build=$(uname -m)-linux-gnu \
             --host=$TARGET_HOST \
             --enable-static \
             --disable-zlib \

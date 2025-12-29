@@ -122,12 +122,21 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup sstrip
+        if: false
         run: |
           echo "Downloading static sstrip binary..."
           curl -L -o sstrip https://github.com/HeXis-YS/sstrip/releases/download/2.1/sstrip-static
           chmod +x sstrip
           echo "Verifying sstrip..."
           ./sstrip --help || echo "sstrip is ready (no --version support)"
+
+      - name: Setup UPX
+        run: |
+          curl -L -o upx https://github.com/upx/upx/releases/download/v5.0.2/upx-5.0.2-amd64_linux.tar.xz
+          tar xf upx-5.0.2-amd64_linux.tar.xz
+          cp ./upx-5.0.2-amd64_linux/upx ./upx
+          chmod +x ./upx
+          ./upx --version
     
       - name: Debug sources
         run: |
@@ -225,10 +234,20 @@ jobs:
         id: prepare
         if: steps.compile.outputs.status == 'success'
         run: |
-          echo "Stripping binaries with sstrip..."
-          ./sstrip dropbearmulti || echo "sstrip failed or not installed, skipping"
-          echo "Sizes after sstrip:"
-          ls -lh dropbearmulti
+          if [ -f ./sstrip ]; then
+            echo "Stripping binaries with sstrip..."
+            ./sstrip dropbearmulti
+            echo "Sizes after sstrip:"
+            ls -lh dropbearmulti
+          fi
+          if [ -f ./upx ]; then
+            echo "Original sizes:"
+            ls -lh dropbearmulti
+            echo "Compressing with UPX..."
+            ./upx --best --lzma dropbearmulti
+            echo "Sizes after UPX:"
+            ls -lh dropbearmulti
+          fi
           OUT_DIR=artifacts
           mkdir -p $OUT_DIR
           cp -f dropbearmulti $OUT_DIR/

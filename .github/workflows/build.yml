@@ -87,30 +87,26 @@ jobs:
         include:
           - arch: arm64
             container: ghcr.io/openwrt/sdk:aarch64_generic-24.10.4
-            host: aarch64-openwrt-linux
-            cross: aarch64-openwrt-linux-
-            tc_bin: /opt/toolchain-aarch64/bin
+            host: aarch64-openwrt-linux-musl
+            cross: aarch64-openwrt-linux-musl-
             cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: armv7a
             container: ghcr.io/openwrt/sdk:arm_cortex-a7-24.10.4
             host: arm-openwrt-linux-musleabi
             cross: arm-openwrt-linux-musleabi-
-            tc_bin: /opt/toolchain-arm_cortex-a7/bin
             cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: armv5
             container: ghcr.io/openwrt/sdk:arm_cortex-a5_vfpv4-24.10.4
             host: arm-openwrt-linux-musleabi
             cross: arm-openwrt-linux-musleabi-
-            tc_bin: /opt/toolchain-arm_cortex-a5/bin
             cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: mips
             container: ghcr.io/openwrt/sdk:mipsel_24kc-24.10.4
             host: mipsel-openwrt-linux
             cross: mipsel-openwrt-linux-
-            tc_bin: /opt/toolchain-mipsel/bin
             cflags: "-Os -ffunction-sections -fdata-sections"
 
     container:
@@ -141,8 +137,8 @@ jobs:
 
       - name: Find cross-compiler binaries
         run: |
-          echo "Searching for cross-compiler binaries matching '*aarch64*gcc*'..."
-          find / -type f -name "*aarch64*gcc*" 2>/dev/null | tee found_gcc.txt
+          echo "Searching for cross-compiler binaries matching '*-openwrt-linux-musl*gcc*'..."
+          find / -type f -name "*-openwrt-linux-musl*gcc*" 2>/dev/null | tee found_gcc.txt
           COUNT=$(wc -l < found_gcc.txt)
           if [ "$COUNT" -eq 0 ]; then
             echo "Error: No cross-compiler binaries found!"
@@ -151,17 +147,14 @@ jobs:
             echo "Found $COUNT cross-compiler binaries."
           fi
     
-      - name: Detect toolchain
-        id: detect-toolchain
+      - name: Find toolchain
+        id: find-toolchain
         run: |
-          echo "Searching for cross-compiler bin directory..."
-          if [ -z "$STAGING_DIR" ]; then
-            echo "Error: STAGING_DIR not set!"
-            exit 1
-          fi
-          TOOLCHAIN_BIN=$(find "$STAGING_DIR" -type f -name "${{ matrix.cross }}gcc" -exec dirname {} \; | head -n 1)
+        run: |
+          echo "Searching for cross-compiler for architecture: ${{ matrix.arch }}"
+          TOOLCHAIN_BIN=$(find /builder/staging_dir -type f -name "${{ matrix.cross }}gcc*" -exec dirname {} \;)
           if [ -z "$TOOLCHAIN_BIN" ]; then
-            echo "Error: cross-compiler not found inside $STAGING_DIR!"
+            echo "Error: cross-compiler not found!"
             exit 1
           fi
           echo "Found cross-compiler in: $TOOLCHAIN_BIN"

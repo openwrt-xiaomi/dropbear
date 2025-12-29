@@ -139,9 +139,21 @@ jobs:
             autoreconf -fi
           fi
 
+      - name: Find toolchain bin
+        run: |
+          echo "Searching for cross-compiler bin directory..."
+          TOOLCHAIN_BIN=$(find / -type f -name "${{ matrix.cross }}gcc" -exec dirname {} \; 2>/dev/null | head -n 1)
+          if [ -z "$TOOLCHAIN_BIN" ]; then
+            echo "Error: cross-compiler not found!"
+            exit 1
+          fi
+          echo "Found cross-compiler in: $TOOLCHAIN_BIN"
+          echo "##[set-env name=TOOLCHAIN_BIN]$TOOLCHAIN_BIN"
+
       - name: Setup cross-compiler PATH
         run: |
-          export PATH="${{ matrix.tc_bin }}:$PATH"
+          export PATH="$TOOLCHAIN_BIN:$PATH"
+          #export PATH="${{ matrix.tc_bin }}:$PATH"
           echo "PATH=$PATH"
           
       - name: Configure

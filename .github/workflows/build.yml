@@ -157,25 +157,25 @@ jobs:
             exit 1
           fi
           echo "Found cross-compiler in: $TOOLCHAIN_BIN"
-          echo "::set-output name=bin::$TOOLCHAIN_BIN"
+          echo "TOOLCHAIN_BIN=$TOOLCHAIN_BIN" >> $GITHUB_ENV
           echo "Contents of the toolchain bin directory:"
           ls -l "$TOOLCHAIN_BIN"
 
-      - name: Setup cross-compiler PATH
+      - name: Setup cross-compiler PATH and others
         run: |
-          echo "Adding toolchain to PATH: ${{ steps.find-toolchain.outputs.bin }}"
-          export PATH="${{ steps.find-toolchain.outputs.bin }}:$PATH"
+          echo "Adding toolchain to PATH: $TOOLCHAIN_BIN"
+          echo "PATH=$TOOLCHAIN_BIN:$PATH" >> $GITHUB_ENV
           echo "PATH=$PATH"
+          echo "TARGET_HOST=${{ matrix.host }}" >> $GITHUB_ENV
+          echo "CROSS_TOOL=${{ matrix.cross }}" >> $GITHUB_ENV
+          echo "CFLAGS=${{ matrix.cflags }}" >> $GITHUB_ENV
+          echo "LDFLAGS=-static -Wl,--gc-sections -Wl,--strip-all" >> $GITHUB_ENV
           
       - name: Configure
         run: |
           export ac_cv_func_getpwnam=yes
           export ac_cv_func_openpty=yes
           export ac_cv_func_syslog=yes
-          export TARGET_HOST=${{ matrix.host }}
-          export CROSS_TOOL=${{ matrix.cross }}
-          export CFLAGS="${{ matrix.cflags }}"
-          export LDFLAGS="-static -Wl,--gc-sections -Wl,--strip-all"
           ./configure \
             --build=$(uname -m)-linux-gnu \
             --host=$TARGET_HOST \

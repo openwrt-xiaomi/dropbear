@@ -93,20 +93,20 @@ jobs:
 
           - arch: armv7a
             container: ghcr.io/openwrt/sdk:arm_cortex-a7-24.10.4
-            host: arm-openwrt-linux-musleabi
-            cross: arm-openwrt-linux-musleabi-
+            host: arm-openwrt-linux-muslgnueabi
+            cross: arm-openwrt-linux-muslgnueabi-
             cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: armv5
             container: ghcr.io/openwrt/sdk:arm_cortex-a5_vfpv4-24.10.4
-            host: arm-openwrt-linux-musleabi
-            cross: arm-openwrt-linux-musleabi-
+            host: arm-openwrt-linux-muslgnueabi
+            cross: arm-openwrt-linux-muslgnueabi-
             cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: mips
             container: ghcr.io/openwrt/sdk:mipsel_24kc-24.10.4
-            host: mipsel-openwrt-linux
-            cross: mipsel-openwrt-linux-
+            host: mipsel-openwrt-linux-musl
+            cross: mipsel-openwrt-linux-musl-
             cflags: "-Os -ffunction-sections -fdata-sections"
 
     container:
@@ -138,7 +138,7 @@ jobs:
       - name: Find cross-compiler binaries
         run: |
           echo "Searching for cross-compiler binaries matching '*-openwrt-linux-musl*gcc*'..."
-          find / -type f -name "*-openwrt-linux-musl*gcc*" 2>/dev/null | tee found_gcc.txt
+          find /builder/staging_dir -type f -name "*-openwrt-linux-musl*gcc*" 2>/dev/null | tee found_gcc.txt
           COUNT=$(wc -l < found_gcc.txt)
           if [ "$COUNT" -eq 0 ]; then
             echo "Error: No cross-compiler binaries found!"
@@ -147,7 +147,7 @@ jobs:
             echo "Found $COUNT cross-compiler binaries."
           fi
     
-      - name: Find toolchain
+      - name: Find GCC toolchain
         id: find-toolchain
         run: |
           echo "Searching for cross-compiler for architecture: ${{ matrix.arch }}"
@@ -157,11 +157,12 @@ jobs:
             exit 1
           fi
           echo "Found cross-compiler in: $TOOLCHAIN_BIN"
-          echo "##[set-env name=TOOLCHAIN_BIN]$TOOLCHAIN_BIN"
+          echo "::set-output name=bin::$TOOLCHAIN_BIN"
 
       - name: Setup cross-compiler PATH
         run: |
-          export PATH="$TOOLCHAIN_BIN:$PATH"
+          echo "Adding toolchain to PATH: ${{ steps.find-toolchain.outputs.bin }}"
+          export PATH="${{ steps.find-toolchain.outputs.bin }}:$PATH"
           echo "PATH=$PATH"
           
       - name: Configure

@@ -121,17 +121,15 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Setup sstrip
+      - name: Build sstrip from source
         run: |
-          if [ -x "/builder/staging_dir/host/bin/sstrip" ]; then
-            echo "Using sstrip from SDK host bin"
-            cp /builder/staging_dir/host/bin/sstrip ./sstrip
-            chmod +x ./sstrip
-          else
-            echo "sstrip not found in SDK, please add it manually"
-            exit 1
-          fi
-          ./sstrip --version || echo "sstrip version check failed"
+          echo "Downloading sstrip source..."
+          curl -fsSL "https://fossies.org/linux/upx/src/stub/tools/sstrip/sstrip.c" -o sstrip.c
+          echo "Compiling sstrip..."
+          gcc -Os -o sstrip sstrip.c
+          ls -lh sstrip
+          echo "Checking sstrip..."
+          ./sstrip --version || echo "sstrip built but no version output"
     
       - name: Debug sources
         run: |

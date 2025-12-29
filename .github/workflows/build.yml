@@ -150,7 +150,6 @@ jobs:
       - name: Find toolchain
         id: find-toolchain
         run: |
-        run: |
           echo "Searching for cross-compiler for architecture: ${{ matrix.arch }}"
           TOOLCHAIN_BIN=$(find /builder/staging_dir -type f -name "${{ matrix.cross }}gcc*" -exec dirname {} \;)
           if [ -z "$TOOLCHAIN_BIN" ]; then

@@ -158,6 +158,8 @@ jobs:
           fi
           echo "Found cross-compiler in: $TOOLCHAIN_BIN"
           echo "::set-output name=bin::$TOOLCHAIN_BIN"
+          echo "Contents of the toolchain bin directory:"
+          ls -l "$TOOLCHAIN_BIN"
 
       - name: Setup cross-compiler PATH
         run: |

@@ -29,12 +29,8 @@ env:
   TEST_BUILD: ${{ github.event.inputs.test_build == 'true' }}
   FAKE_BUILD: ${{ github.event.inputs.fake_build == 'true' }}
   TAG_SUFFIX: ${{ github.event.inputs.suffix }}
-  REPO_URL: https://github.com/openwrt-xiaomi/dropbear
   REPO_LNK: openwrt-xiaomi/dropbear
-  REPO_BRANCH: master
   TAG_PREFIX: v
-  TC_DIR: ${{ github.workspace }}/tc
-  TC_LNK: https://toolchains.bootlin.com/downloads/releases/toolchains
   TZ: UTC
   BUILD_DATE: unknown
   REPO_DATE: unknown
@@ -97,78 +93,106 @@ jobs:
           - ${{ needs.check.outputs.test_build == 'true' || needs.check.outputs.fake_build == 'true' }}
         exclude:
           - { isTestOrFake: true }
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            container: ghcr.io/openwrt/sdk:aarch64_generic-24.10.0
+            host: aarch64-openwrt-linux
+            cross: aarch64-openwrt-linux-
+            cflags: "-Os -ffunction-sections -fdata-sections"
+
+          - arch: armv7a
+            container: ghcr.io/openwrt/sdk:arm_cortex-a7-24.10.0
+            host: arm-openwrt-linux-musleabi
+            cross: arm-openwrt-linux-musleabi-
+            cflags: "-Os -mcpu=cortex-a7 -mfloat-abi=softfp -ffunction-sections -fdata-sections"
+
+          - arch: armv5
+            container: ghcr.io/openwrt/sdk:arm_cortex-a5-24.10.0
+            host: arm-openwrt-linux-musleabi
+            cross: arm-openwrt-linux-musleabi-
+            cflags: "-Os -mcpu=cortex-a5 -mfloat-abi=softfp -ffunction-sections -fdata-sections"
+
+          - arch: mips
+            container: ghcr.io/openwrt/sdk:ramips_mt7621-24.10.0
+            host: mipsel-openwrt-linux
+            cross: mipsel-openwrt-linux-
+            cflags: "-Os -ffunction-sections -fdata-sections"
+   container:
+      image: ${{ matrix.container }}
     steps:
-      - name: Initialization environment
-        env:
-          DEBIAN_FRONTEND: noninteractive
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Debug sources
         run: |
-          sudo apt-get -qq update
-          #sudo apt-get -qq update && sudo apt-get -qq upgrade
-          sudo apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext
-          sudo apt-get -qq install git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev
-          sudo apt-get -qq install file wget libgmp3-dev libmpfr-dev libmpc-dev 
-          sudo apt-get -qq autoremove --purge
-          sudo apt-get -qq clean
-          sudo timedatectl set-timezone "$TZ"
-      
-      - name: Checkout sources
-        uses: actions/checkout@main
-      
-      - name: Download Toolchains
-        env:
-          ARCH: ${{ matrix.arch }}
+          pwd
+          git remote -v
+          git rev-parse HEAD
+          ls -la
+    
+      - name: Install build deps
         run: |
-          mkdir -p $TC_DIR
-          cd $TC_DIR
-          [ $ARCH = arm64  ] && PKG_NAME="aarch64"
-          [ $ARCH = armv7a ] && PKG_NAME="armv7-eabihf"
-          [ $ARCH = armv5  ] && PKG_NAME="armv5-eabi"
-          [ $ARCH = mips   ] && PKG_NAME="mips32el"
-          wget $TC_LNK/$PKG_NAME/tarballs/$PKG_NAME--musl--stable-2020.02-2.tar.bz2
-          tar -xf $PKG_NAME*.tar.bz2
-          TC_DIR=$TC_DIR/$PKG_NAME--musl--stable-2020.02-2
-          TARGET_HOST=$( find $TC_DIR -maxdepth 1 -type d -name '*-buildroot-*' | xargs -- basename )
-          GCC_PATH=$TC_DIR/bin          
-          CROSS_COMPILE=$TC_DIR/bin/$TARGET_HOST-
-          echo "TC_DIR=$TC_DIR" >> $GITHUB_ENV
-          echo "GCC_PATH=$GCC_PATH" >> $GITHUB_ENV
-          echo "TARGET_HOST=$TARGET_HOST" >> $GITHUB_ENV
-          echo "CROSS_TOOL=$GCC_PATH/$TARGET_HOST-" >> $GITHUB_ENV
-          echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
-      
-      - name: Build dropbear
-        id: compile
-        env: 
-          ARCH: ${{ matrix.arch }}
+          apk add --no-cache \
+            bash \
+            make \
+            autoconf \
+            automake \
+            libtool \
+            pkgconf \
+            gcc \
+            musl-dev
+
+      - name: Bootstrap
         run: |
-          echo "############ prepare config ############"
-          ./configure --host=$TARGET_HOST --enable-static --disable-zlib --disable-harden \
-            --disable-pam --enable-bundled-libtom --enable-openpty --enable-syslog \
-            --disable-lastlog --disable-utmpx --disable-utmp --disable-wtmp --disable-wtmpx \
-            --disable-loginfunc --disable-pututline --disable-pututxline \
+          autoreconf -fi
+
+      - name: Configure
+        run: |
+          export TARGET_HOST=${{ matrix.host }}
+          export CROSS_TOOL=${{ matrix.cross }}
+          ./configure \
+            --host=$TARGET_HOST \
+            --enable-static \
+            --disable-zlib \
+            --disable-harden \
+            --disable-pam \
+            --enable-bundled-libtom \
+            --enable-openpty \
+            --enable-syslog \
+            --disable-lastlog \
+            --disable-utmpx \
+            --disable-utmp \
+            --disable-wtmp \
+            --disable-wtmpx \
+            --disable-loginfunc \
+            --disable-pututline \
+            --disable-pututxline \
             CC="${CROSS_TOOL}gcc" \
-            CFLAGS="-Os -Wl,-static -ffunction-sections -fdata-sections" \
+            CFLAGS="${{ matrix.cflags }}" \
             LDFLAGS="-static -Wl,--gc-sections -Wl,--strip-all"
-          echo "############ compile ###################"
-          make PROGRAMS="dropbear scp dropbearkey" MULTI=1 STATIC=1
+
+      - name: Build
+        id: compile
+        run: |
+          make -j$(nproc) PROGRAMS="dropbear scp dropbearkey" MULTI=1 STATIC=1
           if [ ! -e "dropbearmulti" ]; then
               echo "ERROR: File dropbearmulti not found!"
               exit 1
           fi
-          OUT_DIR=outbin
+          OUT_DIR=artifacts
           mkdir -p $OUT_DIR
           cp -f dropbearmulti $OUT_DIR/
           echo "OUT_DIR=$OUT_DIR" >> $GITHUB_ENV
           echo "status=success" >> $GITHUB_OUTPUT
 
-      - name: Upload OUT directory
-        uses: actions/upload-artifact@main
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         if: steps.compile.outputs.status == 'success'
-        env: 
-          ARCH: ${{ matrix.arch }}
         with:
-          name: dropbearmulti-${{ env.ARCH }}
-          path: ${{ github.workspace }}/${{ env.OUT_DIR }}
+          name: dropbearmulti-${{ matrix.arch }}
+          path: artifacts/*
           if-no-files-found: error 
 
   release:

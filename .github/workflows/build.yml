@@ -5,7 +5,7 @@ on:
     inputs:
       test_build:
         description: 'Test build'
-        required: false
+        required: true
         default: 'false'
         type: choice
         options:
@@ -13,7 +13,7 @@ on:
         - false
       fake_build:
         description: 'Fake build'
-        required: false
+        required: true
         default: 'false'
         type: choice
         options:
@@ -29,12 +29,8 @@ env:
   TEST_BUILD: ${{ github.event.inputs.test_build == 'true' }}
   FAKE_BUILD: ${{ github.event.inputs.fake_build == 'true' }}
   TAG_SUFFIX: ${{ github.event.inputs.suffix }}
-  REPO_URL: https://github.com/openwrt-xiaomi/dropbear
   REPO_LNK: openwrt-xiaomi/dropbear
-  REPO_BRANCH: master
   TAG_PREFIX: v
-  TC_DIR: ${{ github.workspace }}/tc
-  TC_LNK: https://toolchains.bootlin.com/downloads/releases/toolchains
   TZ: UTC
   BUILD_DATE: unknown
   REPO_DATE: unknown
@@ -88,87 +84,183 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch:
-          - arm64
-          - armv7a
-          - armv5
-          - mips
-        isTestOrFake:
-          - ${{ needs.check.outputs.test_build == 'true' || needs.check.outputs.fake_build == 'true' }}
-        exclude:
-          - { isTestOrFake: true }
+        include:
+          - arch: arm64
+            container: aarch64_generic
+            host: aarch64-openwrt-linux-musl
+            cross: aarch64-openwrt-linux-musl-
+            cflags: "-Os -ffunction-sections -fdata-sections -fmerge-all-constants"
+
+          - arch: armv7a
+            container: arm_cortex-a7
+            host: arm-openwrt-linux-muslgnueabi
+            cross: arm-openwrt-linux-muslgnueabi-
+            cflags: "-Os -ffunction-sections -fdata-sections -fmerge-all-constants"
+
+          - arch: armv5
+            container: arm_cortex-a5_vfpv4
+            host: arm-openwrt-linux-muslgnueabi
+            cross: arm-openwrt-linux-muslgnueabi-
+            cflags: "-Os -ffunction-sections -fdata-sections -fmerge-all-constants"
+
+          - arch: mips
+            container: mipsel_24kc
+            host: mipsel-openwrt-linux-musl
+            cross: mipsel-openwrt-linux-musl-
+            cflags: "-Os -ffunction-sections -fdata-sections -fmerge-all-constants"
+
+    container:
+      image: ghcr.io/openwrt/sdk:${{ matrix.container }}-24.10.4
+      options: --user root
+
     steps:
-      - name: Initialization environment
-        env:
-          DEBIAN_FRONTEND: noninteractive
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mark repo as safe for git
         run: |
-          sudo apt-get -qq update
-          #sudo apt-get -qq update && sudo apt-get -qq upgrade
-          sudo apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext
-          sudo apt-get -qq install git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev
-          sudo apt-get -qq install file wget libgmp3-dev libmpfr-dev libmpc-dev 
-          sudo apt-get -qq autoremove --purge
-          sudo apt-get -qq clean
-          sudo timedatectl set-timezone "$TZ"
-      
-      - name: Checkout sources
-        uses: actions/checkout@main
-      
-      - name: Download Toolchains
-        env:
-          ARCH: ${{ matrix.arch }}
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Setup sstrip
+        if: false
         run: |
-          mkdir -p $TC_DIR
-          cd $TC_DIR
-          [ $ARCH = arm64  ] && PKG_NAME="aarch64"
-          [ $ARCH = armv7a ] && PKG_NAME="armv7-eabihf"
-          [ $ARCH = armv5  ] && PKG_NAME="armv5-eabi"
-          [ $ARCH = mips   ] && PKG_NAME="mips32el"
-          wget $TC_LNK/$PKG_NAME/tarballs/$PKG_NAME--musl--stable-2020.02-2.tar.bz2
-          tar -xf $PKG_NAME*.tar.bz2
-          TC_DIR=$TC_DIR/$PKG_NAME--musl--stable-2020.02-2
-          TARGET_HOST=$( find $TC_DIR -maxdepth 1 -type d -name '*-buildroot-*' | xargs -- basename )
-          GCC_PATH=$TC_DIR/bin          
-          CROSS_COMPILE=$TC_DIR/bin/$TARGET_HOST-
-          echo "TC_DIR=$TC_DIR" >> $GITHUB_ENV
-          echo "GCC_PATH=$GCC_PATH" >> $GITHUB_ENV
-          echo "TARGET_HOST=$TARGET_HOST" >> $GITHUB_ENV
-          echo "CROSS_TOOL=$GCC_PATH/$TARGET_HOST-" >> $GITHUB_ENV
-          echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
-      
-      - name: Build dropbear
+          echo "Downloading static sstrip binary..."
+          curl -L -o sstrip https://github.com/HeXis-YS/sstrip/releases/download/2.1/sstrip-static
+          chmod +x sstrip
+          echo "Verifying sstrip..."
+          ./sstrip --help || echo "sstrip is ready (no --version support)"
+
+      - name: Setup UPX
+        run: |
+          curl -L -o upx-linux.tar.xz https://github.com/upx/upx/releases/download/v5.0.2/upx-5.0.2-amd64_linux.tar.xz
+          tar xJf upx-linux.tar.xz
+          UPX_DIR=$(tar -tf upx-linux.tar.xz | head -n1 | sed 's|/.*||')
+          echo "UPX directory: $UPX_DIR"
+          cp $UPX_DIR/upx ./upx
+          chmod +x ./upx
+          ./upx --version
+    
+      - name: Debug sources
+        run: |
+          pwd
+          git remote -v
+          git rev-parse HEAD
+          ls -la
+    
+      - name: Bootstrap (only if needed)
+        run: |
+          if [ ! -x ./configure ]; then
+            echo "configure missing, running autoreconf"
+            autoreconf -fi
+          fi
+
+      - name: Find cross-compiler binaries
+        run: |
+          echo "Searching for cross-compiler binaries matching '*-openwrt-linux-musl*gcc*'..."
+          find /builder/staging_dir -type f -name "*-openwrt-linux-musl*gcc*" 2>/dev/null | tee found_gcc.txt
+          COUNT=$(wc -l < found_gcc.txt)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "Error: No cross-compiler binaries found!"
+            exit 1
+          else
+            echo "Found $COUNT cross-compiler binaries."
+          fi
+    
+      - name: Find GCC toolchain
+        id: find-toolchain
+        run: |
+          echo "Searching for cross-compiler for architecture: ${{ matrix.arch }}"
+          TOOLCHAIN_BIN=$(find /builder/staging_dir -type f -name "${{ matrix.cross }}gcc*" -exec dirname {} \; | sort -u | head -n 1)
+          if [ -z "$TOOLCHAIN_BIN" ]; then
+            echo "Error: cross-compiler not found!"
+            exit 1
+          fi
+          echo "Found cross-compiler in: $TOOLCHAIN_BIN"
+          echo "TOOLCHAIN_BIN=$TOOLCHAIN_BIN" >> $GITHUB_ENV
+          echo "Contents of the toolchain bin directory:"
+          ls -l "$TOOLCHAIN_BIN"
+
+      - name: Setup cross-compiler PATH and others
+        run: |
+          echo "Adding toolchain to PATH: $TOOLCHAIN_BIN"
+          echo "PATH=$TOOLCHAIN_BIN:$PATH" >> $GITHUB_ENV
+          echo "PATH=$PATH"
+          echo "TARGET_HOST=${{ matrix.host }}" >> $GITHUB_ENV
+          echo "CROSS_TOOL=${{ matrix.cross }}" >> $GITHUB_ENV
+          echo "CFLAGS=${{ matrix.cflags }}" >> $GITHUB_ENV
+          echo "LDFLAGS=-static -Wl,--gc-sections -Wl,--strip-all" >> $GITHUB_ENV
+          
+      - name: Configure
+        run: |
+          export ac_cv_func_getpwnam=yes
+          export ac_cv_func_openpty=yes
+          export ac_cv_func_syslog=yes
+          ./configure \
+            --build=$(uname -m)-linux-gnu \
+            --host=$TARGET_HOST \
+            --enable-static \
+            --disable-zlib \
+            --disable-harden \
+            --disable-pam \
+            --enable-bundled-libtom \
+            --enable-openpty \
+            --enable-syslog \
+            --disable-lastlog \
+            --disable-utmpx \
+            --disable-utmp \
+            --disable-wtmp \
+            --disable-wtmpx \
+            --disable-loginfunc \
+            --disable-pututline \
+            --disable-pututxline \
+            CC="${CROSS_TOOL}gcc" CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
+
+      - name: Dump config.log on failure
+        if: failure()
+        run: |
+          echo "====== config.log ======"
+          cat config.log
+          echo "========================"
+    
+      - name: Build
         id: compile
-        env: 
-          ARCH: ${{ matrix.arch }}
         run: |
-          echo "############ prepare config ############"
-          ./configure --host=$TARGET_HOST --enable-static --disable-zlib --disable-harden \
-            --disable-pam --enable-bundled-libtom --enable-openpty --enable-syslog \
-            --disable-lastlog --disable-utmpx --disable-utmp --disable-wtmp --disable-wtmpx \
-            --disable-loginfunc --disable-pututline --disable-pututxline \
-            CC="${CROSS_TOOL}gcc" \
-            CFLAGS="-Os -Wl,-static -ffunction-sections -fdata-sections" \
-            LDFLAGS="-static -Wl,--gc-sections -Wl,--strip-all"
-          echo "############ compile ###################"
-          make PROGRAMS="dropbear scp dropbearkey" MULTI=1 STATIC=1
+          make -j$(nproc) PROGRAMS="dropbear scp dropbearkey" MULTI=1 STATIC=1
           if [ ! -e "dropbearmulti" ]; then
               echo "ERROR: File dropbearmulti not found!"
               exit 1
           fi
-          OUT_DIR=outbin
+          echo "status=success" >> $GITHUB_OUTPUT
+          
+      - name: Prepare artifacts
+        id: prepare
+        if: steps.compile.outputs.status == 'success'
+        run: |
+          if [ -f ./sstrip ]; then
+            echo "Stripping binaries with sstrip..."
+            ./sstrip dropbearmulti
+            echo "Sizes after sstrip:"
+            ls -lh dropbearmulti
+          fi
+          if [ -f ./upx ]; then
+            echo "Original sizes:"
+            ls -lh dropbearmulti
+            echo "Compressing with UPX..."
+            ./upx --best --lzma dropbearmulti
+            echo "Sizes after UPX:"
+            ls -lh dropbearmulti
+          fi
+          OUT_DIR=artifacts
           mkdir -p $OUT_DIR
           cp -f dropbearmulti $OUT_DIR/
           echo "OUT_DIR=$OUT_DIR" >> $GITHUB_ENV
-          echo "status=success" >> $GITHUB_OUTPUT
 
-      - name: Upload OUT directory
-        uses: actions/upload-artifact@main
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         if: steps.compile.outputs.status == 'success'
-        env: 
-          ARCH: ${{ matrix.arch }}
         with:
-          name: dropbearmulti-${{ env.ARCH }}
-          path: ${{ github.workspace }}/${{ env.OUT_DIR }}
+          name: dropbearmulti-${{ matrix.arch }}
+          path: artifacts/*
           if-no-files-found: error 
 
   release:

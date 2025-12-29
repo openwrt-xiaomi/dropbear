@@ -84,17 +84,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch:
-          - arm64
-          - armv7a
-          - armv5
-          - mips
-        isTestOrFake:
-          - ${{ needs.check.outputs.test_build == 'true' || needs.check.outputs.fake_build == 'true' }}
-        exclude:
-          - { isTestOrFake: true }
-    strategy:
-      matrix:
         include:
           - arch: arm64
             container: ghcr.io/openwrt/sdk:aarch64_generic-24.10.0
@@ -119,7 +108,7 @@ jobs:
             host: mipsel-openwrt-linux
             cross: mipsel-openwrt-linux-
             cflags: "-Os -ffunction-sections -fdata-sections"
-   container:
+    container:
       image: ${{ matrix.container }}
     steps:
       - name: Checkout

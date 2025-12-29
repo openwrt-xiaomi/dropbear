@@ -126,21 +126,12 @@ jobs:
           git rev-parse HEAD
           ls -la
     
-      - name: Install build deps
+      - name: Bootstrap (only if needed)
         run: |
-          apk add --no-cache \
-            bash \
-            make \
-            autoconf \
-            automake \
-            libtool \
-            pkgconf \
-            gcc \
-            musl-dev
-
-      - name: Bootstrap
-        run: |
-          autoreconf -fi
+          if [ ! -x ./configure ]; then
+            echo "configure missing, running autoreconf"
+            autoreconf -fi
+          fi
 
       - name: Configure
         run: |

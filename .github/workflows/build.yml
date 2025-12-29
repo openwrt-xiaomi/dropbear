@@ -135,6 +135,9 @@ jobs:
 
       - name: Configure
         run: |
+          export ac_cv_func_getpwnam=yes
+          export ac_cv_func_openpty=yes
+          export ac_cv_func_syslog=yes
           export TARGET_HOST=${{ matrix.host }}
           export CROSS_TOOL=${{ matrix.cross }}
           ./configure \
@@ -159,6 +162,13 @@ jobs:
             CFLAGS="${{ matrix.cflags }}" \
             LDFLAGS="-static -Wl,--gc-sections -Wl,--strip-all"
 
+      - name: Dump config.log on failure
+        if: failure()
+        run: |
+          echo "====== config.log ======"
+          cat config.log
+          echo "========================"
+    
       - name: Build
         id: compile
         run: |

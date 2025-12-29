@@ -132,9 +132,11 @@ jobs:
 
       - name: Setup UPX
         run: |
-          curl -L -o upx https://github.com/upx/upx/releases/download/v5.0.2/upx-5.0.2-amd64_linux.tar.xz
-          tar xf upx-5.0.2-amd64_linux.tar.xz
-          cp ./upx-5.0.2-amd64_linux/upx ./upx
+          curl -L -o upx-linux.tar.xz https://github.com/upx/upx/releases/download/v5.0.2/upx-5.0.2-amd64_linux.tar.xz
+          tar xJf upx-linux.tar.xz
+          UPX_DIR=$(tar -tf upx-linux.tar.xz | head -n1 | sed 's|/.*||')
+          echo "UPX directory: $UPX_DIR"
+          cp $UPX_DIR/upx ./upx
           chmod +x ./upx
           ./upx --version
     

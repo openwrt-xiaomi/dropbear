@@ -86,31 +86,31 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            container: ghcr.io/openwrt/sdk:aarch64_generic-24.10.4
+            container: aarch64_generic
             host: aarch64-openwrt-linux-musl
             cross: aarch64-openwrt-linux-musl-
             cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: armv7a
-            container: ghcr.io/openwrt/sdk:arm_cortex-a7-24.10.4
+            container: arm_cortex-a7
             host: arm-openwrt-linux-muslgnueabi
             cross: arm-openwrt-linux-muslgnueabi-
             cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: armv5
-            container: ghcr.io/openwrt/sdk:arm_cortex-a5_vfpv4-24.10.4
+            container: arm_cortex-a5_vfpv4
             host: arm-openwrt-linux-muslgnueabi
             cross: arm-openwrt-linux-muslgnueabi-
             cflags: "-Os -ffunction-sections -fdata-sections"
 
           - arch: mips
-            container: ghcr.io/openwrt/sdk:mipsel_24kc-24.10.4
+            container: mipsel_24kc
             host: mipsel-openwrt-linux-musl
             cross: mipsel-openwrt-linux-musl-
             cflags: "-Os -ffunction-sections -fdata-sections"
 
     container:
-      image: ${{ matrix.container }}
+      image: ghcr.io/openwrt/sdk:${{ matrix.container }}-24.10.4
       options: --user root
 
     steps:
@@ -151,7 +151,7 @@ jobs:
         id: find-toolchain
         run: |
           echo "Searching for cross-compiler for architecture: ${{ matrix.arch }}"
-          TOOLCHAIN_BIN=$(find /builder/staging_dir -type f -name "${{ matrix.cross }}gcc*" -exec dirname {} \;)
+          TOOLCHAIN_BIN=$(find /builder/staging_dir -type f -name "${{ matrix.cross }}gcc*" -exec dirname {} \; | sort -u | head -n 1)
           if [ -z "$TOOLCHAIN_BIN" ]; then
             echo "Error: cross-compiler not found!"
             exit 1

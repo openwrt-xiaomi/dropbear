@@ -121,15 +121,13 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Build sstrip from source
+      - name: Setup sstrip
         run: |
-          echo "Downloading sstrip source..."
-          curl -fsSL "https://fossies.org/linux/upx/src/stub/tools/sstrip/sstrip.c" -o sstrip.c
-          echo "Compiling sstrip..."
-          gcc -Os -o sstrip sstrip.c
-          ls -lh sstrip
-          echo "Checking sstrip..."
-          ./sstrip --version || echo "sstrip built but no version output"
+          echo "Downloading static sstrip binary..."
+          curl -L -o sstrip https://github.com/HeXis-YS/sstrip/releases/download/2.1/sstrip-static
+          chmod +x sstrip
+          echo "Verifying sstrip..."
+          ./sstrip --help || echo "sstrip is ready (no --version support)"
     
       - name: Debug sources
         run: |
